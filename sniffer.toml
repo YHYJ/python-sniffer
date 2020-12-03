@@ -1,0 +1,27 @@
+[interface]
+iface = 'enp0s31f6'     # 嗅探的网络接口名，None代表所有接口 -- 注意Linux和Windows接口名风格
+role = 'dst'            # 'src'或'dst' -- `interface.iface`扮演的角色，嗅探`interface.iface`发送的数据包则设为'src'，嗅探`interface.iface`接收的数据包则设为'dst'
+
+    [interface.sniffer]
+    method = 'tcp'      # 过滤器组件，指定抓取的数据包的类型 -- 即指定嗅探的网络报文协议：TCP/UDP/ICMP...
+    count = 7           # 计数器，指定每次嗅探的数据包数量 -- 0表示无限制
+    format = "{IP:%IP.src%:%TCP.sport% -> %IP.dst%:%TCP.dport%}"
+
+
+[parser]
+# 对于'index'的值：
+# 如果'interface.sniffer.count'的值为5，则：
+#   1. 如果这5个数据包都要解析，则'index'取值和'interface.sniffer.count'一样是5即可
+#   2. 如果只解析这5个数据包中特定的几个（例如下标为0、3、4的），则'index'取值为[0, 3, 4]
+# 特别要说明的一点，如果'index'的值为int类型，则最大取值为'interface.sniffer.count'的值；如果'index'的值为list类型，则最大取值为'interface.sniffer.count - 1'
+index = 7               # 待解析数据包的下标
+byte_order = '!'        # 字节顺序，可选值：@, =, <, >, ! -- 默认!为网络端（等效于大端）
+command_length = 4      # Command（如'ABCD'）的长度
+
+
+[sender]
+protocol = 'UDP'        # 发送数据使用的协议，'TCP'或'UDP' -- 优先使用'UDP'
+ip = '127.0.0.1'        # 数据发送地址 -- 'protocol'为'TCP'代表TCP Server地址（即发送地址），'protocol'为'UDP'代表UDP Client地址（即接收地址）
+port = 8848             # TCP/UDP端口号
+backlog = 5             # 最大待accept连接数
+coding = 'UTF-8'        # 数据编码格式
