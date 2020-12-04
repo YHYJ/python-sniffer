@@ -60,28 +60,29 @@ class Sniffer(object):
         """
         # [interface]配置项
         conf_interface = conf.get('interface', dict())
-        self.iface = conf_interface.get('iface', None)  # 嗅探的网络接口名，None代表所有接口
-        self.role = conf_interface.get('role', 'src')  # 'iface'扮演的角色，具体含义见配置文件
+        self.iface = conf_interface.get('iface', None)
 
         # [interface.sniffer]配置项
         conf_sniffer = conf_interface.get('sniffer', dict())
-        self.method = conf_sniffer.get('method', 'tcp')  # 过滤器组件，指定抓取的数据包的类型
-        self.count = conf_sniffer.get('count', 1)  # 计数器，指定抓取的数据包的数量 -- 0表示无限制
+        self.filter_role = conf_sniffer.get('filter_role', 'src')
+        self.filter_method = conf_sniffer.get('filter_method', None)
+        self.filter_port = conf_sniffer.get('filter_port', None)
+        self.count = conf_sniffer.get('count', 1)
         self.format = conf_sniffer.get('format', str())  # STDOUT输出格式
 
         # [parser]配置项
         conf_parser = conf.get('parser', dict())
-        self.index = conf_parser.get('index', self.count)  # 有效数据包下标
-        self.byte_order = conf_parser.get('byte_order', 4)  # 字节顺序
-        self.command_length = conf_parser.get('command_length', 4)  # Command长度
+        self.index = conf_parser.get('index', self.count)
+        self.byte_order = conf_parser.get('byte_order', 4)
+        self.command_length = conf_parser.get('command_length', 4)
 
         # [sender]配置项
         conf_sender = conf.get('sender', dict())
-        self.protocol = conf_sender.get('protocol', 'UDP')  # Sender使用的协议
-        self.ip = conf_sender.get('ip', '127.0.0.1')  # Sender使用的IP
-        self.port = conf_sender.get('port', 8848)  # Sender使用的Port
-        self.backlog = conf_sender.get('backlog', 5)  # 最大待accept连接数
-        self.coding = conf_sender.get('coding', 'UTF-8')  # 数据编码格式
+        self.protocol = conf_sender.get('protocol', 'UDP')
+        self.ip = conf_sender.get('ip', '127.0.0.1')
+        self.port = conf_sender.get('port', 8848)
+        self.backlog = conf_sender.get('backlog', 5)
+        self.coding = conf_sender.get('coding', 'UTF-8')
 
         # 获取iface的IP
         self.iface_ip = get_address(self.iface)
@@ -164,10 +165,10 @@ class Sniffer(object):
         #   2. 报文类型为{method}
         #   3. 使用的端口为{port} -- 根据测试结果，指定{port}应该就是
         mega_filter = 'ip {role} {iface_ip} and {method} port {port}'.format(
-            role=self.role,
+            role=self.filter_role,
             iface_ip=self.iface_ip,
-            method=self.method,
-            port=8600)
+            method=self.filter_method,
+            port=self.filter_port)
         print('filter = {}'.format(mega_filter))
 
         packets = scapy.sniff(iface=self.iface,
