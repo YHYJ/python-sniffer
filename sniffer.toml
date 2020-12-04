@@ -1,10 +1,10 @@
 [interface]
-iface = 'wlp3s0'        # 嗅探的网络接口名，None代表所有接口 -- 注意Linux和Windows接口名风格
+iface = 'enp0s31f6'        # 嗅探的网络接口名，None代表所有接口 -- 注意Linux和Windows接口名风格
 
     [interface.sniffer]
-    filter_role = ''    # filter组件，指定`interface.iface`扮演的角色 -- 嗅探`interface.iface`发送的数据包则为'src'，嗅探`interface.iface`接收的数据包则为'dst'，为空则无限制
-    filter_method = ''  # filter组件，指定抓取的数据包的类型 -- TCP/UDP/ICMP...，为空则无限制
-    filter_port = ''    # filter组件，指定嗅探的端口 -- 为空则无限制
+    filter_role = 'dst'    # filter组件，指定`interface.iface`扮演的角色 -- 嗅探`interface.iface`发送的数据包则为'src'，嗅探`interface.iface`接收的数据包则为'dst'，为空则无限制
+    filter_method = 'tcp'  # filter组件，指定抓取的数据包的类型 -- TCP/UDP/ICMP...，为空则无限制
+    filter_port = '8600'    # filter组件，指定嗅探的端口 -- 为空则无限制
     count = 7           # 计数器，指定每次嗅探的数据包数量 -- 为0则无限制
     format = "{IP:%IP.src%:%TCP.sport% -> %IP.dst%:%TCP.dport%}"
 

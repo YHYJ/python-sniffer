@@ -90,20 +90,26 @@ class Sniffer(object):
         # sniffer进程和forwarder进程通信队列
         self.queue = Queue()
 
-    def _via_tcp(self, sock, data):
-        """通过TCP发送数据
+    def _parser(self, raw_load: bytes):
+        """解析原始数据
 
-        :sock: TCP Server和TCP Client间的连接
-        :data: 待发送的数据
+        :raw_load: 原始数据，类型为'bytes'
+        :returns: 原始数据解析结果，类型为'tuple'
 
         """
-        while sock:
-            try:
-                sock.send(data)
-            except Exception as e:
-                print(e)
+        raw_value_length = len(raw_load) - 10
+        if raw_value_length > 0:
+            fmt = '{byte_order}2x{command_length}s3x{value_length}sx'.format(
+                byte_order=self.byte_order,
+                command_length=self.command_length,
+                value_length=raw_value_length)
+        else:
+            fmt = '{byte_order}2x{command_length}s3x'.format(
+                byte_order=self.byte_order, command_length=self.command_length)
 
-            time.sleep(1)
+        payload = struct.unpack(fmt, raw_load)
+
+        return payload
 
     def _tuple2dict(self, data):
         """将tuple(bytes(), bytes())类型的数据转换为dict()类型
@@ -120,15 +126,25 @@ class Sniffer(object):
 
         return result
 
+    def _via_tcp(self, sock, data):
+        """通过TCP发送数据
+
+        :sock: TCP Server和TCP Client间的连接
+        :data: 待发送的数据
+
+        """
+        while sock:
+            try:
+                sock.send(data)
+            except Exception as e:
+                print(e)
+
     def forwarder(self):
         """通过指定方式(TCP/UDP)将数据转发到指定地址"""
         addr = (self.ip, self.port)
 
         print('Send data to ({address}) via {proto}'.format(
             address=addr, proto=self.protocol))
-
-        data = self.queue.get()
-        data_jsonb = json.dumps(data).encode(self.coding)
 
         if self.protocol.upper() == 'TCP':
             # 创建TCP Server
@@ -139,10 +155,29 @@ class Sniffer(object):
 
             # TCP发送data
             while True:
+                payloads = dict()
+                # 获取数据包并解析
+                packets = self.queue.get()
+                indexs = self.index if isinstance(
+                    self.index, (list)) else range(self.index)
+                for index in indexs:
+                    try:
+                        raw_load = packets[index][scapy.Raw].load
+                        print('raw load = {}'.format(raw_load))
+                        payload = self._parser(raw_load)
+                        result = self._tuple2dict(payload)
+                        payloads.update(result)
+                    except IndexError:
+                        print('Layer [Raw] not found')
+
+                print('>>> Payloads = {}\n'.format(payloads))
+                data_jsonb = json.dumps(payloads).encode(self.coding)
+
                 sock, client_addr = tcp_server.accept()
                 thread = threading.Thread(target=self._via_tcp,
                                           args=(sock, data_jsonb))
                 thread.start()
+                thread.join()
         elif self.protocol.upper() == 'UDP':
             # 创建UDP Client
             udp_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -150,8 +185,25 @@ class Sniffer(object):
 
             # UDP发送data
             while True:
+                payloads = dict()
+                # 获取数据包并解析
+                packets = self.queue.get()
+                indexs = self.index if isinstance(
+                    self.index, (list)) else range(self.index)
+                for index in indexs:
+                    try:
+                        raw_load = packets[index][scapy.Raw].load
+                        print('raw load = {}'.format(raw_load))
+                        payload = self._parser(raw_load)
+                        result = self._tuple2dict(payload)
+                        payloads.update(result)
+                    except IndexError:
+                        print('Layer [Raw] not found')
+
+                print('>>> Payloads = {}\n'.format(payloads))
+                data_jsonb = json.dumps(payloads).encode(self.coding)
+
                 udp_client.sendto(data_jsonb, addr)
-                time.sleep(1)
         else:
             print('不支持的协议')
 
@@ -182,56 +234,16 @@ class Sniffer(object):
         full_filter = '{pre}{bearing}{post}'.format(pre=pre_filter,
                                                     bearing=bearing,
                                                     post=post_filter)
-        print('filter = {}'.format(full_filter))
+        print('>>> Filter = {}'.format(full_filter))
 
-        packets = scapy.sniff(iface=self.iface,
-                              filter=full_filter.lower(),
-                              count=self.count,
-                              prn=lambda x: x.sprintf(self.format))
-
-        return packets
-
-    def parser(self, raw_load: bytes):
-        """解析原始数据
-
-        :raw_load: 原始数据，类型为'bytes'
-        :returns: 原始数据解析结果，类型为'tuple'
-
-        """
-        raw_value_length = len(raw_load) - 10
-        if raw_value_length > 0:
-            fmt = '{byte_order}2x{command_length}s3x{value_length}sx'.format(
-                byte_order=self.byte_order,
-                command_length=self.command_length,
-                value_length=raw_value_length)
-        else:
-            fmt = '{byte_order}2x{command_length}s3x'.format(
-                byte_order=self.byte_order, command_length=self.command_length)
-
-        payload = struct.unpack(fmt, raw_load)
-
-        return payload
-
-    def main(self):
-        """主要流程函数"""
         while True:
-            payloads = dict()
+            packets = scapy.sniff(iface=self.iface,
+                                  filter=full_filter.lower(),
+                                  count=self.count,
+                                  prn=lambda x: x.sprintf(self.format))
 
-            packets = self.sniffer()
-            indexs = self.index if isinstance(self.index,
-                                              (list)) else range(self.index)
-            for index in indexs:
-                try:
-                    raw_load = packets[index][scapy.Raw].load
-                    print('Raw load = {}'.format(raw_load))
-                    payload = self.parser(raw_load)
-                    result = self._tuple2dict(payload)
-                    payloads.update(result)
-                except IndexError:
-                    print('Layer [Raw] not found')
-
-            self.queue.put(payloads)
-            print('Payloads = {}\n'.format(payloads))
+            self.queue.put(packets)
+            print('>>> Packets = {}\n'.format(packets))
 
             time.sleep(1)
 
@@ -274,19 +286,20 @@ if __name__ == "__main__":
     if True in [args.sniffer, args.forwarder]:
         sniffer = Sniffer(conf)
 
+    # 根据参数执行
     if args.sniffer:  # -s/--sniffer
-        process = Process(target=sniffer.main)
+        process = Process(target=sniffer.sniffer)
 
         print('Starting {}\n'.format('sniffer'))
         process.start()
-
-        payloads = sniffer.queue.get()
-        print('Payloads = {}\n'.format(payloads))
+        process.join()
     elif args.forwarder:  # -f/--forwarder
-        process_sniffer = Process(target=sniffer.main)
+        process_sniffer = Process(target=sniffer.sniffer)
         process_forwarder = Process(target=sniffer.forwarder)
 
         print('Starting {}\n'.format('sniffer'))
         print('Starting {}\n'.format('forwarder'))
         process_sniffer.start()
         process_forwarder.start()
+        process_sniffer.join()
+        process_forwarder.join()
