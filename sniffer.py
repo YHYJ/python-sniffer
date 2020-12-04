@@ -64,7 +64,7 @@ class Sniffer(object):
 
         # [interface.sniffer]配置项
         conf_sniffer = conf_interface.get('sniffer', dict())
-        self.filter_role = conf_sniffer.get('filter_role', 'src')
+        self.filter_role = conf_sniffer.get('filter_role', None)
         self.filter_method = conf_sniffer.get('filter_method', None)
         self.filter_port = conf_sniffer.get('filter_port', None)
         self.count = conf_sniffer.get('count', 1)
@@ -161,18 +161,31 @@ class Sniffer(object):
 
         """
         # 数据包嗅探规则（使用Berkeley Packet Filter (BPF) syntax）
-        #   1. {ip}扮演的角色为{role}
-        #   2. 报文类型为{method}
-        #   3. 使用的端口为{port} -- 根据测试结果，指定{port}应该就是
-        mega_filter = 'ip {role} {iface_ip} and {method} port {port}'.format(
-            role=self.filter_role,
-            iface_ip=self.iface_ip,
-            method=self.filter_method,
-            port=self.filter_port)
-        print('filter = {}'.format(mega_filter))
+        # Pre filter
+        if self.filter_method and self.filter_port:
+            pre_filter = '{method} port {port}'.format(
+                method=self.filter_method, port=self.filter_port)
+        elif self.filter_method and not self.filter_port:
+            pre_filter = '{method}'.format(method=self.filter_method)
+        elif not self.filter_method and self.filter_port:
+            pre_filter = 'port {port}'.format(port=self.filter_port)
+        else:
+            pre_filter = ''
+        # Post filter
+        if self.filter_role:
+            post_filter = 'ip {role} {iface_ip}'.format(role=self.filter_role,
+                                                        iface_ip=self.iface_ip)
+        else:
+            post_filter = ''
+        # Full filter
+        bearing = ' && ' if post_filter else ''
+        full_filter = '{pre}{bearing}{post}'.format(pre=pre_filter,
+                                                    bearing=bearing,
+                                                    post=post_filter)
+        print('filter = {}'.format(full_filter))
 
         packets = scapy.sniff(iface=self.iface,
-                              filter=mega_filter.lower(),
+                              filter=full_filter.lower(),
                               count=self.count,
                               prn=lambda x: x.sprintf(self.format))
 
