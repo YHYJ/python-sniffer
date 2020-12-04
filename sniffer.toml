@@ -1,5 +1,5 @@
 [interface]
-iface = 'enp0s31f6'     # 嗅探的网络接口名，None代表所有接口 -- 注意Linux和Windows接口名风格
+iface = 'wlp3s0'        # 嗅探的网络接口名，None代表所有接口 -- 注意Linux和Windows接口名风格
 role = 'dst'            # 'src'或'dst' -- `interface.iface`扮演的角色，嗅探`interface.iface`发送的数据包则设为'src'，嗅探`interface.iface`接收的数据包则设为'dst'
 
     [interface.sniffer]
