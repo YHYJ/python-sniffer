@@ -18,7 +18,7 @@ ifaces = netifaces.interfaces()
 table = prettytable.PrettyTable()
 table.field_names = [
     'NIC', 'Address (IPv4)', 'Netmask (IPv4)', 'Broadcast (IPv4)',
-    'Address (IPv6)', 'Netmask (IPv6)'
+    'Address (IPv6)', 'Netmask (IPv6)', 'Broadcast (IPv6)'
 ]
 
 for iface in ifaces:
@@ -34,6 +34,8 @@ for iface in ifaces:
                        [dict()])[0].get('addr', substitute),
         iface_info.get(netifaces.AF_INET6,
                        [dict()])[0].get('netmask', substitute),
+        iface_info.get(netifaces.AF_INET6,
+                       [dict()])[0].get('broadcast', substitute),
     ])
 
 print(table)
