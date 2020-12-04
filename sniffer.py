@@ -12,7 +12,6 @@ Description: 嗅探指定网络接口的指定类型的报文
 """
 
 import argparse
-import fcntl
 import json
 import os
 import socket
