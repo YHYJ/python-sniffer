@@ -21,6 +21,7 @@ import threading
 import time
 from multiprocessing import Process, Queue
 
+import netifaces
 import scapy.all as scapy
 import toml
 
@@ -33,19 +34,9 @@ def get_address(iface: str):
     :iface: 网络接口名
     :returns: 指定网络接口的IP，类型为'str'
 
-    宏'SIOCGIFADDR'在/usr/include/linux/sockios.h中定义
-    宏'IFNAMSIZ'在/usr/include/net/if.h中定义
-
     """
-    SIOCGIFADDR = 0x8915  # get PA address
-    IFNAMSIZ = 16  # Length of interface name
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # 创建socket对象
-    fd = sock.fileno()  # 获取socket的文件描述符
-
-    iface_bytes = iface.encode('UTF-8')
-    ifreq = struct.pack('256s', iface_bytes[:IFNAMSIZ - 1])
-    ip = socket.inet_ntoa(fcntl.ioctl(fd, SIOCGIFADDR, ifreq)[20:24])
+    iface_info = netifaces.ifaddresses(iface)
+    ip = iface_info.get(netifaces.AF_INET, [dict()])[0].get('addr', None)
 
     return ip
 
@@ -224,13 +215,14 @@ class Sniffer(object):
         else:
             pre_filter = ''
         # Post filter
-        if self.filter_role:
+        if self.filter_role and self.iface_ip:
             post_filter = 'ip {role} {iface_ip}'.format(role=self.filter_role,
                                                         iface_ip=self.iface_ip)
         else:
             post_filter = ''
+
         # Full filter
-        bearing = ' && ' if post_filter else ''
+        bearing = ' && ' if post_filter and pre_filter else ''
         full_filter = '{pre}{bearing}{post}'.format(pre=pre_filter,
                                                     bearing=bearing,
                                                     post=post_filter)
