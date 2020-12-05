@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: list_nic.py
+File: nic.py
 Author: YJ
 Email: yj1516268@outlook.com
 Created Time: 2020-12-04 09:07:56
@@ -27,7 +27,7 @@ import prettytable
 system = platform.system()
 
 
-def list_nic():
+def nic_info():
     """列出所有NIC的信息
     :returns: NIC信息，类型为：
 
@@ -110,7 +110,7 @@ if __name__ == "__main__":
         'Address (IPv6)', 'Netmask (IPv6)', 'Broadcast (IPv6)'
     ]
 
-    nics = list_nic()
+    nics = nic_info()
     for nic, info in nics.items():
         # 填充列表
         table.add_row([
