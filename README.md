@@ -31,9 +31,9 @@ pip install -r requirements.txt
 
 ## 运行
 
-1. 首先运行[list_nic.py](./list_nic.py)获取所有网络接口信息，运行结果示例如下：
+1. 首先运行[nic.py](./nic.py)获取所有网络接口信息，运行结果示例如下：
 
-  ![NIC info](https://gitee.com/YJ1516/MyPic/raw/master/picgo/list_nic.png)
+  ![NIC info](https://gitee.com/YJ1516/MyPic/raw/master/picgo/nic.png)
 
 2. 然后根据实际情况修改配置文件[sniffer.toml](./sniffer.toml)
 
