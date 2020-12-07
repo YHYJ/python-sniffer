@@ -24,6 +24,8 @@ import netifaces
 import scapy.all as scapy
 import toml
 
+from nic import nic_info
+
 _version = '0.1'
 
 
