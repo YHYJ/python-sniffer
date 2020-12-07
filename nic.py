@@ -94,7 +94,7 @@ def nic_info():
             nic['rsp'] = {iface_name: iface_id}
             nics[iface_name] = nic
     else:
-        print('当前仅支持{}系统，该系统不受支持'.format('Linux/Windows'))
+        raise OSError('当前仅支持{}系统，该系统不受支持'.format('Linux/Windows'))
 
     return nics
 

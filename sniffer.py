@@ -16,30 +16,16 @@ import json
 import os
 import socket
 import struct
-import threading
 import time
-from multiprocessing import Process, Queue
+from queue import Queue
+from threading import Thread, current_thread
 
-import netifaces
 import scapy.all as scapy
 import toml
 
 from nic import nic_info
 
 _version = '0.1'
-
-
-def get_address(iface: str):
-    """获取指定网络接口的IP地址
-
-    :iface: 网络接口名
-    :returns: 指定网络接口的IP，类型为'str'
-
-    """
-    iface_info = netifaces.ifaddresses(iface)
-    ip = iface_info.get(netifaces.AF_INET, [dict()])[0].get('addr', None)
-
-    return ip
 
 
 class Sniffer(object):
@@ -77,7 +63,8 @@ class Sniffer(object):
         self.coding = conf_sender.get('coding', 'UTF-8')
 
         # 获取iface的IP
-        self.iface_ip = get_address(self.iface)
+        nics_info = nic_info()
+        self.iface_ip = nics_info[self.iface]['rsp'].get(self.iface, None)
 
         # sniffer进程和forwarder进程通信队列
         self.queue = Queue()
@@ -166,8 +153,7 @@ class Sniffer(object):
                 data_jsonb = json.dumps(payloads).encode(self.coding)
 
                 sock, client_addr = tcp_server.accept()
-                thread = threading.Thread(target=self._via_tcp,
-                                          args=(sock, data_jsonb))
+                thread = Thread(target=self._via_tcp, args=(sock, data_jsonb))
                 thread.start()
                 thread.join()
         elif self.protocol.upper() == 'UDP':
@@ -281,18 +267,25 @@ if __name__ == "__main__":
 
     # 根据参数执行
     if args.sniffer:  # -s/--sniffer
-        process = Process(target=sniffer.sniffer)
+        thread_sniffer = Thread(target=sniffer.sniffer, name='Sniffer')
+        print('Starting thread {thread_name}\n'.format(
+            thread_name=thread_sniffer.name))
 
-        print('Starting {}\n'.format('sniffer'))
-        process.start()
-        process.join()
+        thread_sniffer.setDaemon(True)
+        thread_sniffer.start()
+        thread_sniffer.join()
     elif args.forwarder:  # -f/--forwarder
-        process_sniffer = Process(target=sniffer.sniffer)
-        process_forwarder = Process(target=sniffer.forwarder)
+        thread_sniffer = Thread(target=sniffer.sniffer, name='Sniffer')
+        print('Starting thread {thread_name}\n'.format(
+            thread_name=thread_sniffer.name))
 
-        print('Starting {}\n'.format('sniffer'))
-        print('Starting {}\n'.format('forwarder'))
-        process_sniffer.start()
-        process_forwarder.start()
-        process_sniffer.join()
-        process_forwarder.join()
+        thread_forwarder = Thread(target=sniffer.forwarder, name='Forwarder')
+        print('Starting thread {thread_name}\n'.format(
+            thread_name=thread_forwarder.name))
+
+        thread_sniffer.setDaemon(True)
+        thread_forwarder.setDaemon(True)
+        thread_sniffer.start()
+        thread_forwarder.start()
+        thread_sniffer.join()
+        thread_forwarder.join()
