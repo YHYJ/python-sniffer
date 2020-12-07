@@ -15,7 +15,7 @@ Description: 列出所有NIC (Network Interface Card)信息
 """
 
 try:
-    # 导入注册表操作模块（内置模块）
+    # 导入注册表操作模块（Python for Windows内置模块）
     import winreg
 except ModuleNotFoundError:
     pass
