@@ -10,6 +10,7 @@ scapy = "*"
 toml = "*"
 
 [dev-packages]
+pyinstaller = "*"
 
 [requires]
 python_version = "3.7"
