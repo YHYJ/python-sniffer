@@ -1,4 +1,0 @@
-netifaces
-prettytable
-scapy
-toml
