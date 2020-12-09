@@ -1,12 +1,11 @@
-[interface]
-iface = 'lo'            # 嗅探的网络接口名，None代表所有接口 -- 注意Linux和Windows接口名风格
-
-    [interface.sniffer]
-    filter_role = ''    # filter组件，指定`interface.iface`扮演的角色 -- 嗅探`interface.iface`发送的数据包则为'src'，嗅探`interface.iface`接收的数据包则为'dst'，为空则无限制
-    filter_method = ''  # filter组件，指定抓取的数据包的类型 -- TCP/UDP/ICMP...，为空则无限制
-    filter_port = ''    # filter组件，指定嗅探的端口 -- 为空则无限制
-    count = 7           # 计数器，指定每次嗅探的数据包数量 -- 为0则无限制
-    format = "{IP:%IP.src%:%TCP.sport% -> %IP.dst%:%TCP.dport%}"
+[sniffer]
+iface = 'lo'            # 嗅探的网络接口名，留空则嗅探所有接口 -- 注意Linux和Windows接口名风格
+ip = ''                 # 所嗅探的网络接口的IP，留空则根据'interface.iface'自动获取 -- 正常时自动获取即可，当自动获取出错时尝试手动指定
+filte_role = ''         # snipper.filte组件，指定`interface.iface`扮演的角色 -- 嗅探`interface.iface`发送的数据包则为'src'，嗅探`interface.iface`接收的数据包则为'dst'，为空则无限制
+filte_method = ''       # snipper.filte组件，指定抓取的数据包的类型 -- TCP/UDP/ICMP...，为空则无限制
+filte_port = ''         # snipper.filte组件，指定嗅探的端口 -- 为空则无限制
+count = 7               # 计数器，指定每次嗅探的数据包数量 -- 为0则无限制
+format = "{IP:%IP.src%:%TCP.sport% -> %IP.dst%:%TCP.dport%}"
 
 
 [parser]
@@ -16,7 +15,7 @@ iface = 'lo'            # 嗅探的网络接口名，None代表所有接口 -- �
 #   2. 如果只解析这5个数据包中特定的几个（例如下标为0、3、4的），则'index'取值为[0, 3, 4]
 # 特别要说明的一点，如果'index'的值为int类型，则最大取值为'interface.sniffer.count'的值；如果'index'的值为list类型，则最大取值为'interface.sniffer.count - 1'
 index = 7               # 待解析数据包的下标
-byte_order = '!'        # 字节顺序，可选值：@, =, <, >, ! -- 默认!为网络端（等效于大端）
+byte_order = '!'        # 字节顺序，可选值：@, =, <, >, ! -- 默认值!为网络端（等效于大端）
 command_length = 4      # Command（如'ABCD'）的长度
 
 

@@ -8,7 +8,7 @@ Created Time: 2020-12-01 09:22:43
 
 Description: 嗅探指定网络接口的指定类型的报文
 
-1. 需要以管理员权限运行
+1. 加-s/--sniffer和-f/--forwarder参数时需要以管理员权限运行
 """
 
 import argparse
@@ -18,7 +18,7 @@ import socket
 import struct
 import time
 from queue import Queue
-from threading import Thread, current_thread
+from threading import Thread
 
 import scapy.all as scapy
 import toml
@@ -36,38 +36,75 @@ class Sniffer(object):
         :conf: 配置信息
 
         """
-        # [interface]配置项
-        conf_interface = conf.get('interface', dict())
-        self.iface = conf_interface.get('iface', None)
-
-        # [interface.sniffer]配置项
-        conf_sniffer = conf_interface.get('sniffer', dict())
-        self.filter_role = conf_sniffer.get('filter_role', None)
-        self.filter_method = conf_sniffer.get('filter_method', None)
-        self.filter_port = conf_sniffer.get('filter_port', None)
-        self.count = conf_sniffer.get('count', 1)
-        self.format = conf_sniffer.get('format', str())  # STDOUT输出格式
+        # [sniffer]配置项
+        conf_sniffer = conf.get('sniffer', dict())
+        # 尝试获取iface配置，如果获取不到或者值是是空字符串则为None
+        iface = conf_sniffer.get('iface', None)
+        self.sniffer_iface = iface if iface else None
+        # 获取iface的IP
+        ip = conf_sniffer.get('ip', None)
+        if ip:
+            self.sniffer_ip = ip
+        else:
+            nics_info = nic_info()
+            self.sniffer_ip = nics_info[self.sniffer_iface]['v4'][0].get(
+                'addr', None)
+        self.sniffer_filte_role = conf_sniffer.get('filte_role', None)
+        self.sniffer_filte_method = conf_sniffer.get('filte_method', None)
+        self.sniffer_filte_port = conf_sniffer.get('filte_port', None)
+        self.sniffer_count = conf_sniffer.get('count', 1)
+        self.sniffer_format = conf_sniffer.get('format', str())  # STDOUT输出格式
 
         # [parser]配置项
         conf_parser = conf.get('parser', dict())
-        self.index = conf_parser.get('index', self.count)
-        self.byte_order = conf_parser.get('byte_order', 4)
-        self.command_length = conf_parser.get('command_length', 4)
+        self.parser_index = conf_parser.get('index', self.sniffer_count)
+        self.parser_byte_order = conf_parser.get('byte_order', 4)
+        self.parser_command_length = conf_parser.get('command_length', 4)
 
         # [sender]配置项
         conf_sender = conf.get('sender', dict())
-        self.protocol = conf_sender.get('protocol', 'UDP')
-        self.ip = conf_sender.get('ip', '127.0.0.1')
-        self.port = conf_sender.get('port', 8848)
-        self.backlog = conf_sender.get('backlog', 5)
-        self.coding = conf_sender.get('coding', 'UTF-8')
-
-        # 获取iface的IP
-        nics_info = nic_info()
-        self.iface_ip = nics_info[self.iface]['v4'][0].get('addr', None)
+        self.sender_protocol = conf_sender.get('protocol', 'UDP')
+        self.sender_ip = conf_sender.get('ip', '127.0.0.1')
+        self.sender_port = conf_sender.get('port', 8848)
+        self.sender_backlog = conf_sender.get('backlog', 5)
+        self.sender_coding = conf_sender.get('coding', 'UTF-8')
 
         # sniffer进程和forwarder进程通信队列
         self.queue = Queue()
+
+        # 配置sniffer.filter
+        self.full_filte = self._init_filte()
+
+    def _init_filte(self):
+        """配置sniffer.filter的规则
+        :returns: 完整的filter规则
+
+        """
+        # 数据包嗅探规则（使用Berkeley Packet Filter (BPF) syntax）
+        # Pre filte rules
+        if self.sniffer_filte_method and self.sniffer_filte_port:
+            pre_filte = '{method} port {port}'.format(
+                method=self.sniffer_filte_method, port=self.sniffer_filte_port)
+        elif self.sniffer_filte_method and not self.sniffer_filte_port:
+            pre_filte = '{method}'.format(method=self.sniffer_filte_method)
+        elif not self.sniffer_filte_method and self.sniffer_filte_port:
+            pre_filte = 'port {port}'.format(port=self.sniffer_filte_port)
+        else:
+            pre_filte = ''
+        # Post filte rules
+        if self.sniffer_filte_role and self.sniffer_ip:
+            post_filte = 'ip {role} {iface_ip}'.format(
+                role=self.sniffer_filte_role, iface_ip=self.sniffer_ip)
+        else:
+            post_filte = ''
+
+        # Full filte rules
+        bearing = ' && ' if post_filte and pre_filte else ''
+        full_filte = '{pre}{bearing}{post}'.format(pre=pre_filte,
+                                                   bearing=bearing,
+                                                   post=post_filte)
+
+        return full_filte
 
     def _parser(self, raw_load: bytes):
         """解析原始数据
@@ -79,12 +116,13 @@ class Sniffer(object):
         raw_value_length = len(raw_load) - 10
         if raw_value_length > 0:
             fmt = '{byte_order}2x{command_length}s3x{value_length}sx'.format(
-                byte_order=self.byte_order,
-                command_length=self.command_length,
+                byte_order=self.parser_byte_order,
+                command_length=self.parser_command_length,
                 value_length=raw_value_length)
         else:
             fmt = '{byte_order}2x{command_length}s3x'.format(
-                byte_order=self.byte_order, command_length=self.command_length)
+                byte_order=self.parser_byte_order,
+                command_length=self.parser_command_length)
 
         payload = struct.unpack(fmt, raw_load)
 
@@ -100,8 +138,8 @@ class Sniffer(object):
         result = dict()
         if isinstance(data, (tuple)):
             result['{key}'.format(
-                key=data[0].decode(self.coding))] = '{value}'.format(
-                    value=data[1].decode(self.coding))
+                key=data[0].decode(self.sender_coding))] = '{value}'.format(
+                    value=data[1].decode(self.sender_coding))
 
         return result
 
@@ -120,25 +158,25 @@ class Sniffer(object):
 
     def forwarder(self):
         """通过指定方式(TCP/UDP)将数据转发到指定地址"""
-        addr = (self.ip, self.port)
+        addr = (self.sender_ip, self.sender_port)
 
         print('Send data to ({address}) via {proto}'.format(
-            address=addr, proto=self.protocol))
+            address=addr, proto=self.sender_protocol))
 
-        if self.protocol.upper() == 'TCP':
+        if self.sender_protocol.upper() == 'TCP':
             # 创建TCP Server
             tcp_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             tcp_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
             tcp_server.bind(address=addr)
-            tcp_server.listen(self.backlog)
+            tcp_server.listen(self.sender_backlog)
 
             # TCP发送data
             while True:
                 payloads = dict()
                 # 获取数据包并解析
                 packets = self.queue.get()
-                indexs = self.index if isinstance(
-                    self.index, (list)) else range(self.index)
+                indexs = self.parser_index if isinstance(
+                    self.parser_index, (list)) else range(self.parser_index)
                 for index in indexs:
                     try:
                         raw_load = packets[index][scapy.Raw].load
@@ -150,13 +188,13 @@ class Sniffer(object):
                         print('Layer [Raw] not found')
 
                 print('>>> Payloads = {}\n'.format(payloads))
-                data_jsonb = json.dumps(payloads).encode(self.coding)
+                data_jsonb = json.dumps(payloads).encode(self.sender_coding)
 
                 sock, client_addr = tcp_server.accept()
                 thread = Thread(target=self._via_tcp, args=(sock, data_jsonb))
                 thread.start()
                 thread.join()
-        elif self.protocol.upper() == 'UDP':
+        elif self.sender_protocol.upper() == 'UDP':
             # 创建UDP Client
             udp_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             udp_client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
@@ -166,8 +204,8 @@ class Sniffer(object):
                 payloads = dict()
                 # 获取数据包并解析
                 packets = self.queue.get()
-                indexs = self.index if isinstance(
-                    self.index, (list)) else range(self.index)
+                indexs = self.parser_index if isinstance(
+                    self.parser_index, (list)) else range(self.parser_index)
                 for index in indexs:
                     try:
                         raw_load = packets[index][scapy.Raw].load
@@ -179,7 +217,7 @@ class Sniffer(object):
                         print('Layer [Raw] not found')
 
                 print('>>> Payloads = {}\n'.format(payloads))
-                data_jsonb = json.dumps(payloads).encode(self.coding)
+                data_jsonb = json.dumps(payloads).encode(self.sender_coding)
 
                 udp_client.sendto(data_jsonb, addr)
         else:
@@ -190,36 +228,13 @@ class Sniffer(object):
         :returns: 嗅探到的数据包列表，类型为'scapy.plist.PacketList'
 
         """
-        # 数据包嗅探规则（使用Berkeley Packet Filter (BPF) syntax）
-        # Pre filter
-        if self.filter_method and self.filter_port:
-            pre_filter = '{method} port {port}'.format(
-                method=self.filter_method, port=self.filter_port)
-        elif self.filter_method and not self.filter_port:
-            pre_filter = '{method}'.format(method=self.filter_method)
-        elif not self.filter_method and self.filter_port:
-            pre_filter = 'port {port}'.format(port=self.filter_port)
-        else:
-            pre_filter = ''
-        # Post filter
-        if self.filter_role and self.iface_ip:
-            post_filter = 'ip {role} {iface_ip}'.format(role=self.filter_role,
-                                                        iface_ip=self.iface_ip)
-        else:
-            post_filter = ''
-
-        # Full filter
-        bearing = ' && ' if post_filter and pre_filter else ''
-        full_filter = '{pre}{bearing}{post}'.format(pre=pre_filter,
-                                                    bearing=bearing,
-                                                    post=post_filter)
-        print('>>> Filter = {}'.format(full_filter))
+        print('>>> Filter = {}'.format(self.full_filte))
 
         while True:
-            packets = scapy.sniff(iface=self.iface,
-                                  filter=full_filter.lower(),
-                                  count=self.count,
-                                  prn=lambda x: x.sprintf(self.format))
+            packets = scapy.sniff(iface=self.sniffer_iface,
+                                  filter=self.full_filte.lower(),
+                                  count=self.sniffer_count,
+                                  prn=lambda x: x.sprintf(self.sniffer_format))
 
             self.queue.put(packets)
             print('>>> Packets = {}\n'.format(packets))
@@ -241,6 +256,10 @@ if __name__ == "__main__":
                         '--config',
                         help=("specify configuration file, "
                               "default is '{}'").format(filename))
+    group.add_argument('-i',
+                       '--info',
+                       action='store_true',
+                       help='display sniffer information')
     group.add_argument('-s',
                        '--sniffer',
                        action='store_true',
@@ -262,25 +281,58 @@ if __name__ == "__main__":
     conf = toml.load(confile)
 
     # 根据参数判断是否创建OPC2UDP对象
-    if True in [args.sniffer, args.forwarder]:
+    if True in [args.info, args.sniffer, args.forwarder]:
         sniffer = Sniffer(conf)
 
     # 根据参数执行
-    if args.sniffer:  # -s/--sniffer
+    if args.info:  # -i/--info
+        sniffer_infos = {
+            'Sniffed network card name': sniffer.sniffer_iface,
+            'Sniffed network card IP': sniffer.sniffer_ip,
+            'Sniffer filter rules': sniffer.full_filte,
+            'Number of packets sniffed each time': sniffer.sniffer_count,
+        }
+        print('Sniffer info:')
+        for key, value in sniffer_infos.items():
+            print('    - {:<36}: {value}'.format(key, value=value))
+
+        parser_infos = {
+            'Byte order': sniffer.parser_byte_order,
+        }
+        print('Parser info:')
+        for key, value in parser_infos.items():
+            print('    - {:<36}: {value}'.format(key, value=value))
+
+        sender_infos = {
+            'Sender protocol':
+            sniffer.sender_protocol,
+            'Sender address':
+            '{ip}:{port}'.format(ip=sniffer.sender_ip,
+                                 port=sniffer.sender_port),
+            'Maximum number of connections':
+            sniffer.sender_backlog,
+            'Encoding format':
+            sniffer.sender_coding,
+        }
+        print('Sender info:')
+        for key, value in sender_infos.items():
+            print('    - {:<36}: {value}'.format(key, value=value))
+
+    elif args.sniffer:  # -s/--sniffer
         thread_sniffer = Thread(target=sniffer.sniffer, name='Sniffer')
-        print('Starting thread {thread_name}\n'.format(
-            thread_name=thread_sniffer.name))
+        print(
+            'Starting {thread_name}\n'.format(thread_name=thread_sniffer.name))
 
         thread_sniffer.setDaemon(True)
         thread_sniffer.start()
         thread_sniffer.join()
     elif args.forwarder:  # -f/--forwarder
         thread_sniffer = Thread(target=sniffer.sniffer, name='Sniffer')
-        print('Starting thread {thread_name}\n'.format(
-            thread_name=thread_sniffer.name))
+        print(
+            'Starting {thread_name}\n'.format(thread_name=thread_sniffer.name))
 
         thread_forwarder = Thread(target=sniffer.forwarder, name='Forwarder')
-        print('Starting thread {thread_name}\n'.format(
+        print('Starting {thread_name}\n'.format(
             thread_name=thread_forwarder.name))
 
         thread_sniffer.setDaemon(True)
