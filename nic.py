@@ -10,8 +10,6 @@ Description: 列出所有NIC (Network Interface Card)信息
 1. Linux下直接得到正常的NIC Name
 2. Windows下得到的是NIC ID，还需要根据NIC ID查询注册表得到NIC Name
 
-# TODO: <05-12-20> #
-1. 增加参数功能：主要是输出太长，增加可选只输出IPv4或IPv6或都可输出的选项
 """
 
 try:
@@ -19,6 +17,8 @@ try:
     import winreg
 except ModuleNotFoundError:
     pass
+import argparse
+import os
 import platform
 
 import netifaces
@@ -100,27 +100,85 @@ def nic_info():
 
 
 if __name__ == "__main__":
-    substitute = '/'  # 某一项信息获取不到时的替代品
+    # 程序名
+    name = os.path.basename(__file__).split('.')[0]
+
+    # 定义参数范围 -- parser是正常参数，group是互斥参数
+    parser = argparse.ArgumentParser(
+        prog=name, description='Packet sniffing and forwarding tool.')
+    parser.add_argument(
+        '-f',
+        '--family',
+        choices=['4', '6', '46', '64'],
+        help=(
+            "AddressFamily (IPv4 or IPv6) to display, "
+            "default is '{}'").format(4))
+    # 获取参数列表
+    args = parser.parse_args()
 
     # 建立表格，表格形式输出以方便阅读
     table = prettytable.PrettyTable()
-    # 表格的列名
-    table.field_names = [
-        'NIC', 'Address (IPv4)', 'Netmask (IPv4)', 'Broadcast (IPv4)',
-        'Address (IPv6)', 'Netmask (IPv6)', 'Broadcast (IPv6)'
-    ]
+    # 某一项信息获取不到时的替代品
+    substitute = '/'
 
+    # 根据参数执行
     nics = nic_info()
-    for nic, info in nics.items():
-        # 填充列表
-        table.add_row([
-            nic,
-            info['v4'][0].get('addr', substitute),
-            info['v4'][0].get('netmask', substitute),
-            info['v4'][0].get('broadcast', substitute),
-            info['v6'][0].get('addr', substitute),
-            info['v6'][0].get('netmask', substitute),
-            info['v6'][0].get('broadcast', substitute),
-        ])
+    if args.family == '4' or not args.family:
+        # 表格的列名
+        table.field_names = [
+            'NIC',
+            'Address (IPv4)',
+            'Netmask (IPv4)',
+            'Broadcast (IPv4)',
+        ]
+
+        for nic, info in nics.items():
+            # 填充列表
+            table.add_row([
+                nic,
+                info['v4'][0].get('addr', substitute),
+                info['v4'][0].get('netmask', substitute),
+                info['v4'][0].get('broadcast', substitute),
+            ])
+    elif args.family == '6':
+        # 表格的列名
+        table.field_names = [
+            'NIC',
+            'Address (IPv6)',
+            'Netmask (IPv6)',
+            'Broadcast (IPv6)',
+        ]
+
+        for nic, info in nics.items():
+            # 填充列表
+            table.add_row([
+                nic,
+                info['v6'][0].get('addr', substitute),
+                info['v6'][0].get('netmask', substitute),
+                info['v6'][0].get('broadcast', substitute),
+            ])
+    elif args.family in ['46', '64']:
+        # 表格的列名
+        table.field_names = [
+            'NIC',
+            'Address (IPv4)',
+            'Netmask (IPv4)',
+            'Broadcast (IPv4)',
+            'Address (IPv6)',
+            'Netmask (IPv6)',
+            'Broadcast (IPv6)',
+        ]
+
+        for nic, info in nics.items():
+            # 填充列表
+            table.add_row([
+                nic,
+                info['v4'][0].get('addr', substitute),
+                info['v4'][0].get('netmask', substitute),
+                info['v4'][0].get('broadcast', substitute),
+                info['v6'][0].get('addr', substitute),
+                info['v6'][0].get('netmask', substitute),
+                info['v6'][0].get('broadcast', substitute),
+            ])
 
     print(table)

@@ -221,7 +221,7 @@ class Sniffer(object):
 
                 udp_client.sendto(data_jsonb, addr)
         else:
-            print('不支持的协议')
+            print('Unsupported protocol')
 
     def sniffer(self):
         """嗅探数据包
@@ -244,7 +244,7 @@ class Sniffer(object):
 
 if __name__ == "__main__":
     # 构建默认配置文件路径
-    name = os.path.basename(__file__).split('.')[0]  # 配置文件名
+    name = os.path.basename(__file__).split('.')[0]  # 程序名
     ext = 'toml'  # 配置文件后缀
     filename = '{name}.{ext}'.format(name=name, ext=ext)  # 完整配置文件名
 
