@@ -64,7 +64,7 @@ class Sniffer(object):
 
         # 获取iface的IP
         nics_info = nic_info()
-        self.iface_ip = nics_info[self.iface]['rsp'].get(self.iface, None)
+        self.iface_ip = nics_info[self.iface]['v4'][0].get('addr', None)
 
         # sniffer进程和forwarder进程通信队列
         self.queue = Queue()
