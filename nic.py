@@ -77,15 +77,12 @@ def nic_info():
         for iface_id in ifaces:
             iface_info = netifaces.ifaddresses(iface_id)  # 获取指定NIC的信息
 
-            # NIC ID --> NIC Name
-            # 这里有一个问题：有一个iface_id在path + sub_path组成的注册表路径里找不到
-            # 但不知道怎么iface_name匹配到了"蓝牙适配器"，奇怪的Windows
             sub_path = r'{}\{}'.format(iface_id, 'Connection')
             try:
                 registry_nic = winreg.OpenKey(registry_network, sub_path)
                 iface_name = winreg.QueryValueEx(registry_nic, 'Name')[0]
-            except Exception:
-                pass
+            except FileNotFoundError:
+                continue
 
             nic = dict()
             # IPv4信息
