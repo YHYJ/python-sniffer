@@ -24,6 +24,8 @@ import platform
 import netifaces
 import prettytable
 
+_version = '0.3'
+
 system = platform.system()
 
 
@@ -106,13 +108,17 @@ if __name__ == "__main__":
     # 定义参数范围 -- parser是正常参数，group是互斥参数
     parser = argparse.ArgumentParser(
         prog=name, description='Packet sniffing and forwarding tool.')
-    parser.add_argument(
-        '-f',
-        '--family',
-        choices=['4', '6', '46', '64'],
-        help=(
-            "AddressFamily (IPv4 or IPv6) to display, "
-            "default is '{}'").format(4))
+    parser.add_argument('-f',
+                        '--family',
+                        choices=['4', '6', '46', '64'],
+                        help=("AddressFamily (IPv4 or IPv6) to display, "
+                              "default is '{}'").format(4))
+    parser.add_argument('-v',
+                        '--version',
+                        action='version',
+                        default=None,
+                        version='%(prog)s {}'.format(_version))
+
     # 获取参数列表
     args = parser.parse_args()
 

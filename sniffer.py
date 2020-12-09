@@ -25,7 +25,7 @@ import toml
 
 from nic import nic_info
 
-_version = '0.1'
+_version = '0.3'
 
 
 class Sniffer(object):
@@ -256,6 +256,11 @@ if __name__ == "__main__":
                         '--config',
                         help=("specify configuration file, "
                               "default is '{}'").format(filename))
+    parser.add_argument('-v',
+                        '--version',
+                        action='version',
+                        default=None,
+                        version='%(prog)s {}'.format(_version))
     group.add_argument('-i',
                        '--info',
                        action='store_true',
@@ -268,11 +273,7 @@ if __name__ == "__main__":
                        '--forwarder',
                        action='store_true',
                        help='start the forwarder (run as root)')
-    group.add_argument('-v',
-                       '--version',
-                       action='version',
-                       default=None,
-                       version='%(prog)s {}'.format(_version))
+
     # 获取参数列表
     args = parser.parse_args()
 
