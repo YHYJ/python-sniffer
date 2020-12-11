@@ -256,11 +256,6 @@ if __name__ == "__main__":
                         '--config',
                         help=("specify configuration file, "
                               "default is '{}'").format(filename))
-    parser.add_argument('-v',
-                        '--version',
-                        action='version',
-                        default=None,
-                        version='%(prog)s {}'.format(_version))
     group.add_argument('-i',
                        '--info',
                        action='store_true',
@@ -272,7 +267,12 @@ if __name__ == "__main__":
     group.add_argument('-f',
                        '--forwarder',
                        action='store_true',
-                       help='start the forwarder (run as root)')
+                       help='start the sniffer and forwarder (run as root)')
+    parser.add_argument('-v',
+                        '--version',
+                        action='version',
+                        default=None,
+                        version='%(prog)s {}'.format(_version))
 
     # 获取参数列表
     args = parser.parse_args()
