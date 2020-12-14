@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: sniffer.py
+File: sniff.py
 Author: YJ
 Email: yj1516268@outlook.com
 Created Time: 2020-12-01 09:22:43
@@ -29,8 +29,8 @@ from utils.log_wrapper import setupLogging
 _version = '0.3'
 
 
-class Sniffer(object):
-    """嗅探网络数据包并解析"""
+class Sniff(object):
+    """网络数据包嗅探&解析工具"""
     def __init__(self, conf: dict):
         """初始化
 
@@ -288,22 +288,22 @@ if __name__ == "__main__":
 
     # 根据参数判断是否创建OPC2UDP对象
     if True in [args.info, args.sniffer, args.forwarder]:
-        sniffer = Sniffer(conf)
+        sniff = Sniff(conf)
 
     # 根据参数执行
     if args.info:  # -i/--info
         sniffer_infos = {
-            'Sniffed network card name': sniffer.sniffer_iface,
-            'Sniffed network card IP': sniffer.sniffer_ip,
-            'Sniffer filter rules': sniffer.full_filte,
-            'Number of packets sniffed each time': sniffer.sniffer_count,
+            'Sniff network card name': sniff.sniffer_iface,
+            'Sniff network card IP': sniff.sniffer_ip,
+            'Sniff filter rules': sniff.full_filte,
+            'Number of packets sniffed each time': sniff.sniffer_count,
         }
         print('Sniffer info:')
         for key, value in sniffer_infos.items():
             print('    - {:<36}: {value}'.format(key, value=value))
 
         parser_infos = {
-            'Byte order': sniffer.parser_byte_order,
+            'Byte order': sniff.parser_byte_order,
         }
         print('Parser info:')
         for key, value in parser_infos.items():
@@ -311,21 +311,21 @@ if __name__ == "__main__":
 
         sender_infos = {
             'Sender protocol':
-            sniffer.sender_protocol,
+            sniff.sender_protocol,
             'Sender address':
-            '{ip}:{port}'.format(ip=sniffer.sender_ip,
-                                 port=sniffer.sender_port),
+            '{ip}:{port}'.format(ip=sniff.sender_ip,
+                                 port=sniff.sender_port),
             'Maximum number of connections':
-            sniffer.sender_backlog,
+            sniff.sender_backlog,
             'Encoding format':
-            sniffer.sender_coding,
+            sniff.sender_coding,
         }
         print('Sender info:')
         for key, value in sender_infos.items():
             print('    - {:<36}: {value}'.format(key, value=value))
 
     elif args.sniffer:  # -s/--sniffer
-        thread_sniffer = Thread(target=sniffer.sniffer, name='Sniffer')
+        thread_sniffer = Thread(target=sniff.sniffer, name='Sniffer')
         logger.info(
             'Starting {thread_name}\n'.format(thread_name=thread_sniffer.name))
 
@@ -333,11 +333,11 @@ if __name__ == "__main__":
         thread_sniffer.start()
         thread_sniffer.join()
     elif args.forwarder:  # -f/--forwarder
-        thread_sniffer = Thread(target=sniffer.sniffer, name='Sniffer')
+        thread_sniffer = Thread(target=sniff.sniffer, name='Sniffer')
         logger.info(
             'Starting {thread_name}\n'.format(thread_name=thread_sniffer.name))
 
-        thread_forwarder = Thread(target=sniffer.forwarder, name='Forwarder')
+        thread_forwarder = Thread(target=sniff.forwarder, name='Forwarder')
         logger.info('Starting {thread_name}\n'.format(
             thread_name=thread_forwarder.name))
 
