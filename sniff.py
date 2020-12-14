@@ -282,7 +282,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # 尝试获取配置信息
-    confile = args.config if args.config else os.path.join('.', filename)
+    confile = args.config if args.config else os.path.join(
+        '.{}conf{}'.format(os.sep, os.sep), filename)
     conf = toml.load(confile)
     logger = setupLogging(conf['log'])
 
@@ -313,8 +314,7 @@ if __name__ == "__main__":
             'Sender protocol':
             sniff.sender_protocol,
             'Sender address':
-            '{ip}:{port}'.format(ip=sniff.sender_ip,
-                                 port=sniff.sender_port),
+            '{ip}:{port}'.format(ip=sniff.sender_ip, port=sniff.sender_port),
             'Maximum number of connections':
             sniff.sender_backlog,
             'Encoding format':
