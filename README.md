@@ -1,4 +1,4 @@
-# python-sniffer
+# python-sniff
 
 Packet sniffing and forwarding tool
 
@@ -47,17 +47,17 @@ pipenv sync
 
     > 具体参数请执行`python nic.py -h`查看
 
-2. 然后根据实际情况修改配置文件[sniffer.toml](./sniffer.toml)
+2. 然后根据实际情况修改配置文件[sniff.toml](./conf/sniff.toml)
 
-    > 配置指导已经写到了sniffer.toml的注释信息里
+    > 配置指导已经写到了sniff.toml的注释信息里
 
-3. 最后运行[sniffer.py](./sniffer.py)即可：
+3. 最后运行[sniff.py](./sniff.py)即可：
 
     ![snipper -i](https://gitee.com/YJ1516/MyPic/raw/master/picgo/snipper_i.png)
 
     ![snipper -s](https://gitee.com/YJ1516/MyPic/raw/master/picgo/snipper_s.png)
 
-    > 具体参数请执行`python sniffer.py -h`查看
+    > 具体参数请执行`python sniff.py -h`查看
 
 ## 编译
 
@@ -71,8 +71,8 @@ pipenv sync
     pyinstaller -F nic.py --additional-hooks-dir=./hook
     ```
 
-- 编译sniffer.py
+- 编译sniff.py
 
     ```shell
-    pyinstaller -F sniffer.py --additional-hooks-dir=./hook
+    pyinstaller -F sniff.py --additional-hooks-dir=./hook
     ```
