@@ -24,6 +24,7 @@ import scapy.all as scapy
 import toml
 
 from nic import nic_info
+from utils.log_wrapper import setupLogging
 
 _version = '0.3'
 
@@ -68,6 +69,9 @@ class Sniffer(object):
         self.sender_port = conf_sender.get('port', 8848)
         self.sender_backlog = conf_sender.get('backlog', 5)
         self.sender_coding = conf_sender.get('coding', 'UTF-8')
+
+        # [log]配置项
+        self.logger = setupLogging(conf['log'])
 
         # sniffer进程和forwarder进程通信队列
         self.queue = Queue()
@@ -154,13 +158,13 @@ class Sniffer(object):
             try:
                 sock.send(data)
             except Exception as e:
-                print(e)
+                self.logger.error(e)
 
     def forwarder(self):
         """通过指定方式(TCP/UDP)将数据转发到指定地址"""
         addr = (self.sender_ip, self.sender_port)
 
-        print('Send data to ({address}) via {proto}'.format(
+        self.logger.info('Send data to ({address}) via {proto}'.format(
             address=addr, proto=self.sender_protocol))
 
         if self.sender_protocol.upper() == 'TCP':
@@ -180,14 +184,14 @@ class Sniffer(object):
                 for index in indexs:
                     try:
                         raw_load = packets[index][scapy.Raw].load
-                        print('raw load = {}'.format(raw_load))
+                        self.logger.info('raw load = {}'.format(raw_load))
                         payload = self._parser(raw_load)
                         result = self._tuple2dict(payload)
                         payloads.update(result)
                     except IndexError:
-                        print('Layer [Raw] not found')
+                        self.logger.warning('Layer [Raw] not found')
 
-                print('>>> Payloads = {}\n'.format(payloads))
+                self.logger.info('Payloads = {}\n'.format(payloads))
                 data_jsonb = json.dumps(payloads).encode(self.sender_coding)
 
                 sock, client_addr = tcp_server.accept()
@@ -209,26 +213,26 @@ class Sniffer(object):
                 for index in indexs:
                     try:
                         raw_load = packets[index][scapy.Raw].load
-                        print('raw load = {}'.format(raw_load))
+                        self.logger.info('raw load = {}'.format(raw_load))
                         payload = self._parser(raw_load)
                         result = self._tuple2dict(payload)
                         payloads.update(result)
                     except IndexError:
-                        print('Layer [Raw] not found')
+                        self.logger.warning('Layer [Raw] not found')
 
-                print('>>> Payloads = {}\n'.format(payloads))
+                self.logger.info('Payloads = {}\n'.format(payloads))
                 data_jsonb = json.dumps(payloads).encode(self.sender_coding)
 
                 udp_client.sendto(data_jsonb, addr)
         else:
-            print('Unsupported protocol')
+            self.logger.error('Unsupported protocol')
 
     def sniffer(self):
         """嗅探数据包
         :returns: 嗅探到的数据包列表，类型为'scapy.plist.PacketList'
 
         """
-        print('>>> Filter = {}'.format(self.full_filte))
+        logger.info('Filter = {}'.format(self.full_filte))
 
         while True:
             packets = scapy.sniff(iface=self.sniffer_iface,
@@ -237,7 +241,7 @@ class Sniffer(object):
                                   prn=lambda x: x.sprintf(self.sniffer_format))
 
             self.queue.put(packets)
-            print('>>> Packets = {}\n'.format(packets))
+            self.logger.info('Packets = {}\n'.format(packets))
 
             time.sleep(1)
 
@@ -280,6 +284,7 @@ if __name__ == "__main__":
     # 尝试获取配置信息
     confile = args.config if args.config else os.path.join('.', filename)
     conf = toml.load(confile)
+    logger = setupLogging(conf['log'])
 
     # 根据参数判断是否创建OPC2UDP对象
     if True in [args.info, args.sniffer, args.forwarder]:
@@ -321,7 +326,7 @@ if __name__ == "__main__":
 
     elif args.sniffer:  # -s/--sniffer
         thread_sniffer = Thread(target=sniffer.sniffer, name='Sniffer')
-        print(
+        logger.info(
             'Starting {thread_name}\n'.format(thread_name=thread_sniffer.name))
 
         thread_sniffer.setDaemon(True)
@@ -329,11 +334,11 @@ if __name__ == "__main__":
         thread_sniffer.join()
     elif args.forwarder:  # -f/--forwarder
         thread_sniffer = Thread(target=sniffer.sniffer, name='Sniffer')
-        print(
+        logger.info(
             'Starting {thread_name}\n'.format(thread_name=thread_sniffer.name))
 
         thread_forwarder = Thread(target=sniffer.forwarder, name='Forwarder')
-        print('Starting {thread_name}\n'.format(
+        logger.info('Starting {thread_name}\n'.format(
             thread_name=thread_forwarder.name))
 
         thread_sniffer.setDaemon(True)
