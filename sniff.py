@@ -70,9 +70,6 @@ class Sniff(object):
         self.sender_backlog = conf_sender.get('backlog', 5)
         self.sender_coding = conf_sender.get('coding', 'UTF-8')
 
-        # [log]配置项
-        self.logger = setupLogging(conf['log'])
-
         # sniffer进程和forwarder进程通信队列
         self.queue = Queue()
 
@@ -158,13 +155,13 @@ class Sniff(object):
             try:
                 sock.send(data)
             except Exception as e:
-                self.logger.error(e)
+                logger.error(e)
 
     def forwarder(self):
         """通过指定方式(TCP/UDP)将数据转发到指定地址"""
         addr = (self.sender_ip, self.sender_port)
 
-        self.logger.info('Send data to ({address}) via {proto}'.format(
+        logger.info('Send data to ({address}) via {proto}'.format(
             address=addr, proto=self.sender_protocol))
 
         if self.sender_protocol.upper() == 'TCP':
@@ -184,14 +181,14 @@ class Sniff(object):
                 for index in indexs:
                     try:
                         raw_load = packets[index][scapy.Raw].load
-                        self.logger.info('raw load = {}'.format(raw_load))
+                        logger.info('raw load = {}'.format(raw_load))
                         payload = self._parser(raw_load)
                         result = self._tuple2dict(payload)
                         payloads.update(result)
                     except IndexError:
-                        self.logger.warning('Layer [Raw] not found')
+                        logger.warning('Layer [Raw] not found')
 
-                self.logger.info('Payloads = {}\n'.format(payloads))
+                logger.info('Payloads = {}\n'.format(payloads))
                 data_jsonb = json.dumps(payloads).encode(self.sender_coding)
 
                 sock, client_addr = tcp_server.accept()
@@ -213,19 +210,19 @@ class Sniff(object):
                 for index in indexs:
                     try:
                         raw_load = packets[index][scapy.Raw].load
-                        self.logger.info('raw load = {}'.format(raw_load))
+                        logger.info('raw load = {}'.format(raw_load))
                         payload = self._parser(raw_load)
                         result = self._tuple2dict(payload)
                         payloads.update(result)
                     except IndexError:
-                        self.logger.warning('Layer [Raw] not found')
+                        logger.warning('Layer [Raw] not found')
 
-                self.logger.info('Payloads = {}\n'.format(payloads))
+                logger.info('Payloads = {}\n'.format(payloads))
                 data_jsonb = json.dumps(payloads).encode(self.sender_coding)
 
                 udp_client.sendto(data_jsonb, addr)
         else:
-            self.logger.error('Unsupported protocol')
+            logger.error('Unsupported protocol')
 
     def sniffer(self):
         """嗅探数据包
@@ -241,7 +238,7 @@ class Sniff(object):
                                   prn=lambda x: x.sprintf(self.sniffer_format))
 
             self.queue.put(packets)
-            self.logger.info('Packets = {}\n'.format(packets))
+            logger.info('Packets = {}\n'.format(packets))
 
             time.sleep(1)
 
