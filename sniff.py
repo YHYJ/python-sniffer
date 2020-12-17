@@ -17,7 +17,12 @@ import os
 import socket
 import struct
 import time
-from queue import Queue
+
+try:
+    from queue import Queue
+except Exception:
+    from Queue import Queue
+
 from threading import Thread
 
 import scapy.all as scapy
@@ -31,7 +36,7 @@ _version = '0.3'
 
 class Sniff(object):
     """网络数据包嗅探&解析工具"""
-    def __init__(self, conf: dict):
+    def __init__(self, conf):
         """初始化
 
         :conf: 配置信息
@@ -110,7 +115,7 @@ class Sniff(object):
 
         return full_filte
 
-    def _parser(self, raw_load: bytes):
+    def _parser(self, raw_load):
         """解析原始数据
 
         :raw_load: 原始数据，类型为'bytes'
