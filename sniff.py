@@ -152,7 +152,7 @@ class Sniff(object):
 
         return result
 
-    def _via_tcp(self, sock, data):
+    def send_via_tcp(self, sock, data):
         """通过TCP发送数据
 
         :sock: TCP Server和TCP Client间的连接
@@ -200,7 +200,8 @@ class Sniff(object):
                 data_jsonb = json.dumps(payloads).encode(self.sender_coding)
 
                 sock, client_addr = tcp_server.accept()
-                thread = Thread(target=self._via_tcp, args=(sock, data_jsonb))
+                thread = Thread(target=self.send_via_tcp,
+                                args=(sock, data_jsonb))
                 thread.start()
                 thread.join()
         elif self.sender_protocol.upper() == 'UDP':
