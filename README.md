@@ -1,4 +1,4 @@
-# python-sniff
+# Sniffer
 
 Packet sniffing and forwarding tool
 
