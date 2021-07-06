@@ -176,7 +176,7 @@ class Sniff(object):
             # 创建TCP Server
             tcp_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             tcp_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
-            tcp_server.bind(address=addr)
+            tcp_server.bind(addr)
             tcp_server.listen(self.sender_backlog)
 
             # TCP发送data
@@ -199,7 +199,7 @@ class Sniff(object):
                 self.logger.info('Payloads = {}\n'.format(payloads))
                 data_jsonb = json.dumps(payloads).encode(self.sender_coding)
 
-                sock, client_addr = tcp_server.accept()
+                sock, _ = tcp_server.accept()
                 thread = Thread(target=self.send_via_tcp,
                                 args=(sock, data_jsonb))
                 thread.start()
@@ -296,59 +296,60 @@ if __name__ == "__main__":
     if True in [args.info, args.sniffer, args.forwarder]:
         sniff = Sniff(conf)
 
-    # 根据参数执行
-    if args.info:  # -i/--info
-        sniffer_infos = {
-            'Sniff network card name': sniff.sniffer_iface,
-            'Sniff network card IP': sniff.sniffer_ip,
-            'Sniff filter rules': sniff.full_filte,
-            'Number of packets sniffed each time': sniff.sniffer_count,
-        }
-        print('Sniffer info:')
-        for key, value in sniffer_infos.items():
-            print('    - {:<36}: {value}'.format(key, value=value))
+        # 根据参数执行
+        if args.info:  # -i/--info
+            sniffer_infos = {
+                'Sniff network card name': sniff.sniffer_iface,
+                'Sniff network card IP': sniff.sniffer_ip,
+                'Sniff filter rules': sniff.full_filte,
+                'Number of packets sniffed each time': sniff.sniffer_count,
+            }
+            print('Sniffer info:')
+            for key, value in sniffer_infos.items():
+                print('    - {:<36}: {value}'.format(key, value=value))
 
-        parser_infos = {
-            'Byte order': sniff.parser_byte_order,
-        }
-        print('Parser info:')
-        for key, value in parser_infos.items():
-            print('    - {:<36}: {value}'.format(key, value=value))
+            parser_infos = {
+                'Byte order': sniff.parser_byte_order,
+            }
+            print('Parser info:')
+            for key, value in parser_infos.items():
+                print('    - {:<36}: {value}'.format(key, value=value))
 
-        sender_infos = {
-            'Sender protocol':
-            sniff.sender_protocol,
-            'Sender address':
-            '{ip}:{port}'.format(ip=sniff.sender_ip, port=sniff.sender_port),
-            'Maximum number of connections':
-            sniff.sender_backlog,
-            'Encoding format':
-            sniff.sender_coding,
-        }
-        print('Sender info:')
-        for key, value in sender_infos.items():
-            print('    - {:<36}: {value}'.format(key, value=value))
+            sender_infos = {
+                'Sender protocol':
+                sniff.sender_protocol,
+                'Sender address':
+                '{ip}:{port}'.format(ip=sniff.sender_ip,
+                                     port=sniff.sender_port),
+                'Maximum number of connections':
+                sniff.sender_backlog,
+                'Encoding format':
+                sniff.sender_coding,
+            }
+            print('Sender info:')
+            for key, value in sender_infos.items():
+                print('    - {:<36}: {value}'.format(key, value=value))
 
-    elif args.sniffer:  # -s/--sniffer
-        thread_sniffer = Thread(target=sniff.sniffer, name='Sniffer')
-        print(
-            'Starting {thread_name}\n'.format(thread_name=thread_sniffer.name))
+        elif args.sniffer:  # -s/--sniffer
+            thread_sniffer = Thread(target=sniff.sniffer, name='Sniffer')
+            print('Starting {thread_name}\n'.format(
+                thread_name=thread_sniffer.name))
 
-        thread_sniffer.setDaemon(True)
-        thread_sniffer.start()
-        thread_sniffer.join()
-    elif args.forwarder:  # -f/--forwarder
-        thread_sniffer = Thread(target=sniff.sniffer, name='Sniffer')
-        print(
-            'Starting {thread_name}\n'.format(thread_name=thread_sniffer.name))
+            thread_sniffer.setDaemon(True)
+            thread_sniffer.start()
+            thread_sniffer.join()
+        elif args.forwarder:  # -f/--forwarder
+            thread_sniffer = Thread(target=sniff.sniffer, name='Sniffer')
+            print('Starting {thread_name}\n'.format(
+                thread_name=thread_sniffer.name))
 
-        thread_forwarder = Thread(target=sniff.forwarder, name='Forwarder')
-        print('Starting {thread_name}\n'.format(
-            thread_name=thread_forwarder.name))
+            thread_forwarder = Thread(target=sniff.forwarder, name='Forwarder')
+            print('Starting {thread_name}\n'.format(
+                thread_name=thread_forwarder.name))
 
-        thread_sniffer.setDaemon(True)
-        thread_forwarder.setDaemon(True)
-        thread_sniffer.start()
-        thread_forwarder.start()
-        thread_sniffer.join()
-        thread_forwarder.join()
+            thread_sniffer.setDaemon(True)
+            thread_forwarder.setDaemon(True)
+            thread_sniffer.start()
+            thread_forwarder.start()
+            thread_sniffer.join()
+            thread_forwarder.join()
